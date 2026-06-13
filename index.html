@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Переводчик - Русский → Муринский</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', 'Arial', sans-serif;
+            background-color: #f1f3f4;
+        }
+
+        .header {
+            background-color: #fff;
+            padding: 20px 40px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #1a73e8;
+            font-size: 28px;
+            font-weight: 400;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .language-bar {
+            background-color: #fff;
+            border-radius: 8px 8px 0 0;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .lang-box {
+            font-size: 16px;
+            color: #5f6368;
+            font-weight: 500;
+        }
+
+        .lang-box.active {
+            color: #1a73e8;
+        }
+
+        .arrow {
+            color: #5f6368;
+            font-size: 20px;
+        }
+
+        .translate-area {
+            background-color: #fff;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-radius: 0 0 8px 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .input-section, .output-section {
+            padding: 30px;
+            position: relative;
+        }
+
+        .input-section {
+            border-right: 1px solid #e0e0e0;
+        }
+
+        textarea {
+            width: 100%;
+            height: 300px;
+            border: none;
+            outline: none;
+            font-size: 18px;
+            resize: none;
+            color: #202124;
+            line-height: 1.6;
+        }
+
+        .output-text {
+            width: 100%;
+            height: 300px;
+            font-size: 18px;
+            color: #202124;
+            line-height: 1.6;
+            overflow-y: auto;
+        }
+
+        .char-count {
+            position: absolute;
+            bottom: 10px;
+            right: 30px;
+            color: #80868b;
+            font-size: 12px;
+        }
+
+        .clear-btn {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: none;
+            border: none;
+            color: #5f6368;
+            cursor: pointer;
+            font-size: 20px;
+            padding: 5px;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .clear-btn:hover {
+            background-color: #f1f3f4;
+        }
+
+        .placeholder {
+            color: #80868b;
+        }
+
+        @media (max-width: 768px) {
+            .translate-area {
+                grid-template-columns: 1fr;
+            }
+
+            .input-section {
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+            }
+
+            textarea, .output-text {
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Переводчик Бурмалда</h1>
+    </div>
+
+    <div class="container">
+        <div class="language-bar">
+            <div class="lang-box active">Русский</div>
+            <div class="arrow">→</div>
+            <div class="lang-box">Муринский (Бурмалда)</div>
+        </div>
+
+        <div class="translate-area">
+            <div class="input-section">
+                <button class="clear-btn" id="clearBtn" style="display:none;">✕</button>
+                <textarea id="inputText" placeholder="Введите текст"></textarea>
+                <div class="char-count" id="charCount">0 / 5000</div>
+            </div>
+
+            <div class="output-section">
+                <div class="output-text" id="outputText">
+                    <span class="placeholder">Перевод</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const inputText = document.getElementById('inputText');
+        const outputText = document.getElementById('outputText');
+        const charCount = document.getElementById('charCount');
+        const clearBtn = document.getElementById('clearBtn');
+
+        // Словарь исключений и их синонимов
+        const exceptions = {
+            'я': 'ч',
+            'дед': 'дод',
+            'дедушка': 'дод',
+            'дедуля': 'дод',
+            'батя': 'батч',
+            'отец': 'батч',
+            'папа': 'батч',
+            'папаша': 'батч',
+            'отче': 'батч',
+            'тятя': 'батч',
+            'батька': 'батч',
+            'родитель': 'батч',
+            'мама': 'матч',
+            'мать': 'матч',
+            'матушка': 'матч',
+            'мамочка': 'матч',
+            'мамуля': 'матч',
+            'маменька': 'матч',
+            'сын': 'сыр',
+            'сынок': 'сыр',
+            'сыночек': 'сыр',
+            'сынуля': 'сыр',
+            'сынишка': 'сыр',
+            'друг': 'друн',
+            'приятель': 'друн',
+            'товарищ': 'друн',
+            'дружок': 'друн',
+            'кореш': 'друн',
+            'братан': 'друн',
+            'жена': 'жинка',
+            'супруга': 'жинка',
+            'женушка': 'жинка',
+            'благоверная': 'жинка',
+            'половина': 'жинка',
+            'муж': 'муч',
+            'супруг': 'муч',
+            'благоверный': 'муч',
+            'муженек': 'муч'
+        };
+
+        // Служебные слова, которые НИКОГДА не являются существительными
+        const serviceWords = new Set([
+            'в', 'на', 'с', 'к', 'о', 'об', 'от', 'до', 'по', 'из', 'у', 'за', 
+            'над', 'под', 'про', 'для', 'без', 'через', 'при', 'и', 'а', 'но',
+            'я', 'ты', 'он', 'она', 'оно', 'мы', 'вы', 'они', 'мне', 'тебе', 
+            'ему', 'ей', 'нам', 'вам', 'им', 'меня', 'тебя', 'его', 'её', 'нас', 
+            'вас', 'их', 'мной', 'тобой', 'ним', 'ней', 'нами', 'вами', 'ними',
+            'который', 'которая', 'которое', 'которые', 'что', 'чтобы', 'как',
+            'если', 'когда', 'где', 'куда', 'откуда', 'почему', 'зачем', 'сколько',
+            'так', 'там', 'тут', 'здесь', 'тогда', 'теперь', 'уже', 'ещё', 'еще',
+            'очень', 'совсем', 'вполне', 'почти', 'слишком', 'чуть', 'едва',
+            'не', 'ни', 'да', 'нет', 'пусть', 'пускай', 'ли', 'бы', 'же', 'ведь',
+            'спасибо', 'пожалуйста', 'здравствуйте', 'привет', 'пока', 'до'
+        ]);
+
+        // Наречия (не переводятся)
+        const adverbs = new Set([
+            'хорошо', 'плохо', 'быстро', 'медленно', 'громко', 'тихо', 'рано', 
+            'поздно', 'давно', 'скоро', 'всегда', 'никогда', 'иногда', 'часто',
+            'редко', 'вместе', 'отдельно', 'близко', 'далеко', 'высоко', 'низко',
+            'много', 'мало', 'больше', 'меньше', 'лучше', 'хуже', 'красиво',
+            'страшно', 'весело', 'грустно', 'интересно', 'скучно', 'легко', 'трудно'
+        ]);
+
+        // Прилагательные окончания для определения
+        const adjectiveEndings = [
+            'ный', 'ная', 'ное', 'ные', 'ным', 'ной', 'ном', 'ными',
+            'ого', 'ому', 'ую', 'ою',
+            'кий', 'кая', 'кое', 'кие', 'ким', 'кой', 'ком', 'кими',
+            'ский', 'ская', 'ское', 'ские',
+            'ий', 'ая', 'ое', 'ие', 'им', 'ей', 'ем', 'ими',
+            'ый', 'ой', 'ым', 'ом'
+        ];
+
+        // Глагольные окончания и суффиксы
+        const verbPatterns = [
+            'ть', 'ти', 'чь',
+            'ать', 'ять', 'еть', 'ить', 'оть', 'уть', 'ыть',
+            'аю', 'яю', 'ую', 'юю',
+            'ешь', 'ёшь', 'ишь', 'ёте', 'ите',
+            'ет', 'ёт', 'ит',
+            'ем', 'ём', 'им',
+            'ете', 'ите',
+            'ут', 'ют', 'ат', 'ят',
+            'ал', 'ял', 'ел', 'ил', 'ол', 'ул',
+            'ала', 'яла', 'ела', 'ила', 'ола', 'ула',
+            'ало', 'яло', 'ело', 'ило', 'оло', 'уло',
+            'али', 'яли', 'ели', 'или', 'оли', 'ули'
+        ];
+
+        function countSyllables(word) {
+            const vowels = 'аеёиоуыэюя';
+            let count = 0;
+            for (let char of word.toLowerCase()) {
+                if (vowels.includes(char)) count++;
+            }
+            return count || 1;
+        }
+
+        function isVowel(char) {
+            return 'аеёиоуыэюя'.includes(char.toLowerCase());
+        }
+
+        function isConsonant(char) {
+            return 'бвгджзйклмнпрстфхцчшщ'.includes(char.toLowerCase());
+        }
+
+        function isAdjective(word) {
+            const lower = word.toLowerCase();
+            
+            // Проверяем окончания прилагательных
+            for (let ending of adjectiveEndings) {
+                if (lower.endsWith(ending) && lower.length > ending.length + 2) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        function isVerb(word) {
+            const lower = word.toLowerCase();
+            
+            // Проверяем типичные глагольные паттерны
+            for (let pattern of verbPatterns) {
+                if (lower.endsWith(pattern)) {
+                    const baseLength = lower.length - pattern.length;
+                    if (baseLength >= 2) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
+
+        function isNoun(word, prevWord = '', nextWord = '') {
+            const lower = word.toLowerCase();
+            
+            // Исключаем служебные слова и наречия
+            if (serviceWords.has(lower) || adverbs.has(lower)) {
+                return false;
+            }
+            
+            // Исключаем прилагательные
+            if (isAdjective(lower)) {
+                return false;
+            }
+            
+            // Исключаем глаголы
+            if (isVerb(lower)) {
+                return false;
+            }
+
+            // Контекстный анализ: после предлогов обычно существительные
+            const prevLower = prevWord.toLowerCase();
+            if (prevWord && (serviceWords.has(prevLower) || 
+                ['в', 'на', 'с', 'к', 'о', 'у', 'за', 'над', 'под', 'про', 'для', 'без', 'из', 'от', 'до', 'по'].includes(prevLower))) {
+                return true;
+            }
+
+            // После прилагательных часто идут существительные
+            if (prevWord && isAdjective(prevWord)) {
+                return true;
+            }
+
+            // Слова с суффиксами существительных
+            const nounSuffixes = ['ость', 'ник', 'тель', 'ция', 'ство', 'изм', 'ант', 'ент', 'ист', 'ор', 'ер', 'ёр'];
+            for (let suffix of nounSuffixes) {
+                if (lower.endsWith(suffix)) {
+                    return true;
+                }
+            }
+
+            // Если слово не похоже на глагол или прилагательное, считаем существительным
+            if (lower.length >= 3) {
+                return true;
+            }
+
+            return false;
+        }
+
+        function getWordBase(word) {
+            const lower = word.toLowerCase();
+            
+            // Падежные окончания (в порядке от длинных к коротким)
+            const caseEndings = [
+                'ами', 'ями', 'ами', 'ах', 'ях', 'ов', 'ев', 'ей', 'ам', 'ям', 
+                'ом', 'ем', 'им', 'ём', 'ой', 'ою', 'ей', 'ёй', 'ию', 'ью',
+                'а', 'я', 'ы', 'и', 'у', 'ю', 'е', 'ё', 'ь'
+            ];
+            
+            for (let ending of caseEndings) {
+                if (lower.endsWith(ending) && lower.length > ending.length + 1) {
+                    const base = lower.slice(0, -ending.length);
+                    const suffix = lower.slice(-ending.length);
+                    
+                    // Проверяем, что после удаления окончания осталась разумная основа
+                    if (base.length >= 2) {
+                        return { base, suffix, hasEnding: true };
+                    }
+                }
+            }
+            
+            return { base: lower, suffix: '', hasEnding: false };
+        }
+
+        function translateNounBase(base) {
+            // Проверка на исключения
+            if (exceptions[base]) {
+                return exceptions[base];
+            }
+
+            const syllables = countSyllables(base);
+            const lastChar = base[base.length - 1];
+
+            // 1 слог и заканчивается на согласную (включая й)
+            if (syllables === 1 && isConsonant(lastChar)) {
+                return base + 'ость';
+            }
+
+            // Заканчивается на гласную
+            if (isVowel(lastChar)) {
+                return base + 'сть';
+            }
+
+            // Длинное слово (больше 1 слога) заканчивается на согласную
+            if (syllables > 1 && isConsonant(lastChar)) {
+                // Если не на 'к'
+                if (lastChar !== 'к') {
+                    return base + 'к';
+                }
+                // Если на 'к', не меняем
+                return base;
+            }
+
+            return base;
+        }
+
+        function declineTranslatedNoun(translatedBase, suffix) {
+            if (!suffix) return translatedBase;
+            
+            // Родительный падеж (а, я) -> и
+            if (suffix === 'а' || suffix === 'я') {
+                return translatedBase + 'и';
+            }
+            
+            // Винительный падеж (у, ю) -> у
+            if (suffix === 'у' || suffix === 'ю') {
+                return translatedBase + 'у';
+            }
+            
+            // Остальные падежи сохраняем окончание
+            return translatedBase + suffix;
+        }
+
+        function translateWord(word, prevWord = '', nextWord = '') {
+            const lowerWord = word.toLowerCase();
+            
+            // Сразу проверяем исключения (целое слово)
+            if (exceptions[lowerWord]) {
+                return exceptions[lowerWord];
+            }
+
+            // Проверяем, является ли слово существительным
+            if (!isNoun(word, prevWord, nextWord)) {
+                return word;
+            }
+
+            // Получаем основу и падежное окончание
+            const { base, suffix, hasEnding } = getWordBase(word);
+            
+            // Проверяем исключения для основы
+            if (exceptions[base]) {
+                return declineTranslatedNoun(exceptions[base], suffix);
+            }
+            
+            // Переводим основу слова
+            const translatedBase = translateNounBase(base);
+            
+            // Склоняем переведенное слово
+            return declineTranslatedNoun(translatedBase, suffix);
+        }
+
+        function translate(text) {
+            // Разбиваем текст на слова, сохраняя пунктуацию
+            const tokens = text.match(/[а-яёА-ЯЁ]+|[^а-яёА-ЯЁ]+/g) || [];
+            
+            // Получаем только слова для контекстного анализа
+            const words = tokens.filter(t => /[а-яёА-ЯЁ]/.test(t));
+            
+            return tokens.map((token, index) => {
+                // Если это не слово (пунктуация, пробелы), оставляем как есть
+                if (!/[а-яёА-ЯЁ]/.test(token)) {
+                    return token;
+                }
+
+                // Находим индекс текущего слова среди всех слов
+                const wordIndex = tokens.slice(0, index).filter(t => /[а-яёА-ЯЁ]/.test(t)).length;
+                const prevWord = wordIndex > 0 ? words[wordIndex - 1] : '';
+                const nextWord = wordIndex < words.length - 1 ? words[wordIndex + 1] : '';
+
+                const isCapitalized = token[0] === token[0].toUpperCase();
+                const translated = translateWord(token, prevWord, nextWord);
+                
+                // Сохраняем регистр первой буквы
+                if (isCapitalized && translated.length > 0) {
+                    return translated.charAt(0).toUpperCase() + translated.slice(1);
+                }
+                return translated;
+            }).join('');
+        }
+
+        inputText.addEventListener('input', function() {
+            const text = this.value;
+            const length = text.length;
+            
+            charCount.textContent = `${length} / 5000`;
+            clearBtn.style.display = length > 0 ? 'flex' : 'none';
+
+            if (length > 0) {
+                const translated = translate(text);
+                outputText.innerHTML = translated;
+            } else {
+                outputText.innerHTML = '<span class="placeholder">Перевод</span>';
+            }
+        });
+
+        clearBtn.addEventListener('click', function() {
+            inputText.value = '';
+            outputText.innerHTML = '<span class="placeholder">Перевод</span>';
+            charCount.textContent = '0 / 5000';
+            clearBtn.style.display = 'none';
+            inputText.focus();
+        });
+
+        inputText.addEventListener('input', function() {
+            if (this.value.length > 5000) {
+                this.value = this.value.substring(0, 5000);
+            }
+        });
+    </script>
+</body>
+</html>
